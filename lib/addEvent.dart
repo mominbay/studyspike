@@ -86,7 +86,7 @@ class AddEventScreenState extends State<AddEventScreen> {
 
     int result = await dbProvider.insert(newTask);
     if(result != 0) {
-      print("HOORAY");
+      print("Successfully created task");
     }
   }
 
