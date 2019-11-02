@@ -112,9 +112,9 @@ class TaskCalendarState extends State<TaskCalendar> {
         future: _setMarkedDates(),
         builder: (context, snapshot) {
           if(snapshot.hasError){
-            return Text("Messed up a wee bit");
+            return Text("Data has error");
           } else if (!snapshot.hasData){
-            return Text("Wait a lil longer");
+            return Text("Wait please...");
           } else {
             var data = snapshot.data;
             return SingleChildScrollView(

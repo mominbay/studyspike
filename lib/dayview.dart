@@ -85,9 +85,9 @@ class DayViewState extends State<DayView> {
           future: dbProvider.getByDate(widget.date),
           builder: (context, snapshot){
             if(snapshot.hasError){
-              return Text("ANASKM");
+              return Text("Data has error");
             } else if (!snapshot.hasData) {
-              return Text("Please wait");
+              return Text("Wait please...");
             } else {
               return SingleChildScrollView(
                 child: Padding(
