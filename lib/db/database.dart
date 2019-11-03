@@ -59,6 +59,20 @@ class DBProvider {
     return result;
   }
 
+  Future<int> update(Task task) async {
+    Database db = await this.database;
+    var result = await db.update(tblTasks, task.toMap(),
+        where: "$colId =?", whereArgs: [task.id]);
+    return result;
+  }
+
+  Future<Task> getById(int id) async {
+    Database db = await this.database;
+    List<Map> result = await db.rawQuery("Select * from $tblTasks where $colId = $id");
+    Task task = Task.fromObject(result[0]);
+    return task;
+  }
+
   Future<int> delete(int id) async {
     Database db = await this.database;
     var result = await db.rawDelete("Delete from $tblTasks where $colId = $id");
@@ -79,10 +93,11 @@ class DBProvider {
     Database db = await this.database;
     DateFormat format = new DateFormat("yyyy-MM-dd");
     String queryDate = format.format(date);
-    List<Map> result = await db.rawQuery("Select * from $tblTasks where $colDate=$queryDate");
+    List<Map> result = await db.rawQuery("Select * from $tblTasks where $colDate = \'$queryDate\'");
     List<Task> tasks = new List<Task>();
     for(int i = 0; i < result.length; i++){
       tasks.add(Task.fromObject(result[i]));
+      print(tasks[i].date);
     }
     sortByTime(tasks);
     return tasks;

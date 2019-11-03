@@ -17,11 +17,30 @@ class DayView extends StatefulWidget {
 
 class DayViewState extends State<DayView> {
   DBProvider dbProvider = new DBProvider();
+  Future<List<Task>> tasks;
+
+  //Get tasks of the day
+  @override
+  void initState() {
+    tasks = dbProvider.getByDate(widget.date);
+    super.initState();
+  }
+
+  void update(){
+    setState(() {
+      tasks = dbProvider.getByDate(widget.date);
+    });
+  }
+
   //Navigate to event add
   void _goToAdd() async {
     bool result = await Navigator.push(context,
-        MaterialPageRoute(builder: (builder) => AddEventScreen(date: widget.date))
-    );
+      MaterialPageRoute(builder: (builder) => AddEventScreen(
+        date: widget.date,
+      ))
+    ).then((value){
+      update();
+    });
   }
   //Generate dynamic list
   List<Widget> makeTaskCards(List<Task> tasks) {
@@ -33,15 +52,16 @@ class DayViewState extends State<DayView> {
       String end = tasks[i].date + " " + tasks[i].end;
       DateTime endTime = DateTime.parse(end);
       Duration taskDuration = endTime.difference(startTime);
-      double taskHeight = taskDuration.inMinutes / 2;
+      double taskHeight = taskDuration.inMinutes.toDouble();
 
       //dictate card offset
       DateTime zero = DateTime.parse(tasks[i].date);
       Duration taskDelay = startTime.difference(zero);
-      double taskOffset = taskDelay.inMinutes / 2;
+      double taskOffset = taskDelay.inMinutes.toDouble();
       result.add(new Positioned(
         top: taskOffset,
         child: Container(
+          width: MediaQuery.of(context).size.width,
           height: taskHeight,
           color: Colors.pinkAccent,
           child: Center(
@@ -55,10 +75,11 @@ class DayViewState extends State<DayView> {
 
   @override
   Widget build(BuildContext context) {
-    DateFormat format = new DateFormat("MM.dd.yyyy");
-    String dateString = format.format(widget.date);
+    DateFormat viewFormat = new DateFormat("MM.dd.yyyy");
+    String dateString = viewFormat.format(widget.date);
     return Scaffold(
       body: NestedScrollView(
+        //TODO incorporate double scroll
         headerSliverBuilder: (BuildContext context, bool innerBoxIsScrolled) {
           return <Widget>[
             SliverAppBar(
@@ -82,22 +103,20 @@ class DayViewState extends State<DayView> {
           ];
         },
         body: FutureBuilder(
-          future: dbProvider.getByDate(widget.date),
+          future: tasks,
           builder: (context, snapshot){
             if(snapshot.hasError){
               return Text("Data has error");
             } else if (!snapshot.hasData) {
               return Text("Wait please...");
             } else {
-              return SingleChildScrollView(
-                child: Padding(
-                  padding: const EdgeInsets.symmetric(vertical: 8.0),
-                  child: Container(
-                    color: Colors.yellow,
-                    height: 720,
-                    child: Stack(
-                      children: makeTaskCards(snapshot.data),
-                    )
+              return Padding(
+                padding: const EdgeInsets.symmetric(vertical: 8.0),
+                child: Container(
+                  height: 2000,
+                  color: Colors.yellow,
+                  child: Stack(
+                    children: makeTaskCards(snapshot.data),
                   ),
                 ),
               );

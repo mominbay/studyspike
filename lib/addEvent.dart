@@ -6,7 +6,13 @@ import 'package:intl/intl.dart';
 
 class AddEventScreen extends StatefulWidget {
   final DateTime date;
-  AddEventScreen({Key key, this.date}) : super(key: key);
+  final Task task;
+
+  AddEventScreen({
+    Key key,
+    this.date,
+    this.task,
+  }) : super(key: key);
 
   @override
   State<AddEventScreen> createState() {
@@ -17,6 +23,8 @@ class AddEventScreen extends StatefulWidget {
 class AddEventScreenState extends State<AddEventScreen> {
   DBProvider dbProvider = new DBProvider();
 
+  Future<List<Task>> otherTasks;
+
   TextEditingController eventName = new TextEditingController();
   TextEditingController eventDesc = new TextEditingController();
   DateTime eventStart;
@@ -24,6 +32,35 @@ class AddEventScreenState extends State<AddEventScreen> {
   String startDisplay = "Not set";
   String endDisplay = "Not set";
   String eventType;
+
+  //get other tasks. if called with another event, fill fields automatically.
+  @override
+  void initState() {
+    otherTasks = dbProvider.getByDate(widget.date);
+    super.initState();
+    if(widget.task != null) {
+      eventName.text = widget.task.name;
+      eventDesc.text = widget.task.desc;
+      startDisplay = widget.task.start;
+      endDisplay = widget.task.end;
+      eventType = widget.task.type;
+    }
+  }
+
+
+  //if called with another event, change header text
+  String _headerText() {
+
+    DateFormat format = new DateFormat("MM.dd.yyyy");
+    String headerDate = format.format(widget.date);
+    String result;
+    if(widget.task != null) {
+      result = widget.task.name + " (" + headerDate + ")";
+    } else {
+      result = "Creating new task for " + headerDate;
+    }
+    return result;
+  }
 
   @override
   void dispose() {
@@ -54,7 +91,7 @@ class AddEventScreenState extends State<AddEventScreen> {
   }
 
   bool _formsAreComplete(){
-    if(eventName.text == "" || eventStart == null ||  eventEnd == null || eventType == null){
+    if(eventName.text == "" || startDisplay == null ||  endDisplay == null || eventType == null){
       return false;
     }
     return true;
@@ -70,23 +107,55 @@ class AddEventScreenState extends State<AddEventScreen> {
     return true;
   }
 
+  /* bool _overlapping(){
+    for(int i = 0; i < otherTasks.length; i++){
+      DateTime otherTaskStart = DateTime.parse(widget.otherTasks[i].date + " " + widget.otherTasks[i].start);
+      DateTime otherTaskEnd = DateTime.parse(widget.otherTasks[i].date + " " + widget.otherTasks[i].end);
+      if(otherTaskStart.compareTo(eventStart) > 0 && otherTaskStart.compareTo(eventEnd) < 0){
+        return false;
+      } else if (otherTaskEnd.compareTo(eventStart) > 0 && otherTaskEnd.compareTo(eventEnd) < 0){
+        return false;
+      }
+    }
+    return true;
+  } */
+
   void _post() async {
     DateFormat format = new DateFormat("yyyy-MM-dd");
     String date = format.format(widget.date);
-    Task newTask = new Task(
-      eventName.text,
-      eventDesc.text,
-      eventType,
-      date,
-      startDisplay,
-      endDisplay,
-      0,
-      0
-    );
-
-    int result = await dbProvider.insert(newTask);
-    if(result != 0) {
-      print("Successfully created task");
+    //create new task if called without task
+    if(widget.task == null) {
+      Task newTask = new Task(
+        eventName.text,
+        eventDesc.text,
+        eventType,
+        date,
+        startDisplay,
+        endDisplay,
+        0,
+        0
+      );
+      int result = await dbProvider.insert(newTask);
+      if (result != 0) {
+        print("Successfully created task");
+      }
+    } //update existing if called with task
+    else if(widget.task != null) {
+      Task newTask = new Task.withId(
+        widget.task.id,
+        eventName.text,
+        eventDesc.text,
+        eventType,
+        date,
+        startDisplay,
+        endDisplay,
+        0,
+        0
+      );
+      int result = await dbProvider.update(newTask);
+      if (result != 0) {
+        print("Successfully updated task");
+      }
     }
   }
 
@@ -148,7 +217,6 @@ class AddEventScreenState extends State<AddEventScreen> {
           child: TextField(
             onChanged: (text){
               setState(() {
-
               });
             },
             controller: eventDesc,
@@ -223,7 +291,6 @@ class AddEventScreenState extends State<AddEventScreen> {
                     });
                     int index = eventStart.toString().indexOf(" ");
                     print(eventStart.toString().substring(0, index));
-                    //print(eventStart.year.toString() + "-" + eventStart.month.toString() + "-" + eventStart.day.toString());
                   },
                   currentTime: DateTime.now(),
                   locale: LocaleType.en
@@ -385,16 +452,12 @@ class AddEventScreenState extends State<AddEventScreen> {
     );
   }
 
-
-
   @override
   Widget build(BuildContext context) {
-    DateFormat format = new DateFormat("MM.dd.yyyy");
-    String headerText = format.format(widget.date);
     return Scaffold(
       appBar: AppBar(
         title: Text(
-          "Create Task for " + headerText
+          _headerText()
         ),
         centerTitle: true,
         backgroundColor: Color.fromRGBO(81, 218, 207, 1),
