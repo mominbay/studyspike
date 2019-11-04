@@ -49,7 +49,7 @@ class TaskCalendarState extends State<TaskCalendar> {
   }
 
   void _goToDay(DateTime date) async {
-    bool result = await Navigator.push(context,
+    await Navigator.push(context,
       MaterialPageRoute(builder: (builder) => DayView(date: date))
     );
   }

@@ -99,17 +99,8 @@ class DBProvider {
       tasks.add(Task.fromObject(result[i]));
       print(tasks[i].date);
     }
-    sortByTime(tasks);
+    Task.sortByTime(tasks);
     return tasks;
   }
 
-  DateTime formDate(Task task) {
-    String date = task.date;
-    String time = task.start;
-    return DateTime.parse(date + " " + time);
-  }
-
-  void sortByTime(List<Task> tasks) {
-    tasks.sort((a, b) => formDate(a).compareTo(formDate(b)));
-  }
 }

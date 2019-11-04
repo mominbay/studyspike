@@ -34,7 +34,7 @@ class DayViewState extends State<DayView> {
 
   //Navigate to event add
   void _goToAdd() async {
-    bool result = await Navigator.push(context,
+    await Navigator.push(context,
       MaterialPageRoute(builder: (builder) => AddEventScreen(
         date: widget.date,
       ))

@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:spike_plan/addEvent.dart';
 import 'package:spike_plan/taskview.dart';
+import 'package:spike_plan/ratingtest.dart';
 
 void main() => runApp(MyApp());
 

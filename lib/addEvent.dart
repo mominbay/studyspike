@@ -32,6 +32,10 @@ class AddEventScreenState extends State<AddEventScreen> {
   String startDisplay = "Not set";
   String endDisplay = "Not set";
   String eventType;
+  int eventDone = 0;
+  int eventRating = 0;
+
+  bool operating = false;
 
   //get other tasks. if called with another event, fill fields automatically.
   @override
@@ -44,6 +48,8 @@ class AddEventScreenState extends State<AddEventScreen> {
       startDisplay = widget.task.start;
       endDisplay = widget.task.end;
       eventType = widget.task.type;
+      eventDone = widget.task.done;
+      eventRating = widget.task.rating;
     }
   }
 
@@ -121,6 +127,9 @@ class AddEventScreenState extends State<AddEventScreen> {
   } */
 
   void _post() async {
+    setState(() {
+      operating = true;
+    });
     DateFormat format = new DateFormat("yyyy-MM-dd");
     String date = format.format(widget.date);
     //create new task if called without task
@@ -132,13 +141,20 @@ class AddEventScreenState extends State<AddEventScreen> {
         date,
         startDisplay,
         endDisplay,
-        0,
-        0
+        eventDone,
+        eventRating
       );
-      int result = await dbProvider.insert(newTask);
-      if (result != 0) {
-        print("Successfully created task");
-      }
+      dbProvider.insert(newTask).then((value){
+        Navigator.pop(context, true);
+        if (value != 0) {
+          AlertDialog alertDialog = new AlertDialog(
+            title: Text("Success"),
+            content: Text("Created task: ${newTask.name}"),
+          );
+          showDialog(context: context, builder: (_) => alertDialog);
+        }
+      });
+
     } //update existing if called with task
     else if(widget.task != null) {
       Task newTask = new Task.withId(
@@ -149,13 +165,19 @@ class AddEventScreenState extends State<AddEventScreen> {
         date,
         startDisplay,
         endDisplay,
-        0,
-        0
+        eventDone,
+        eventRating
       );
-      int result = await dbProvider.update(newTask);
-      if (result != 0) {
-        print("Successfully updated task");
-      }
+      dbProvider.update(newTask).then((value){
+        Navigator.pop(context, true);
+        if (value != 0) {
+          AlertDialog alertDialog = new AlertDialog(
+            title: Text("Success"),
+            content: Text("Updated task: ${newTask.name}"),
+          );
+          showDialog(context: context, builder: (_) => alertDialog);
+        }
+      });
     }
   }
 
@@ -436,6 +458,11 @@ class AddEventScreenState extends State<AddEventScreen> {
   }
 
   Widget submitButton(){
+    if(operating){
+      return Center(
+        child: CircularProgressIndicator(),
+      );
+    }
     return Container(
       width: double.infinity,
       child: RaisedButton(
