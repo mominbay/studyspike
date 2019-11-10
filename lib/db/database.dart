@@ -97,7 +97,6 @@ class DBProvider {
     List<Task> tasks = new List<Task>();
     for(int i = 0; i < result.length; i++){
       tasks.add(Task.fromObject(result[i]));
-      print(tasks[i].date);
     }
     Task.sortByTime(tasks);
     return tasks;

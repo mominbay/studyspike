@@ -38,9 +38,7 @@ class DayViewState extends State<DayView> {
       MaterialPageRoute(builder: (builder) => AddEventScreen(
         date: widget.date,
       ))
-    ).then((value){
-      update();
-    });
+    ).then((value) => update());
   }
   //Generate dynamic list
   List<Widget> makeTaskCards(List<Task> tasks) {

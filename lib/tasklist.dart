@@ -3,6 +3,9 @@ import 'package:spike_plan/db/database.dart';
 import 'package:spike_plan/db/task.dart';
 import 'package:spike_plan/addEvent.dart';
 import 'package:flutter_rating_bar/flutter_rating_bar.dart';
+import 'package:intl/intl.dart';
+
+enum Choice {update, delete, reverse}
 
 class TaskList extends StatefulWidget {
   @override
@@ -30,16 +33,18 @@ class TaskListState extends State<TaskList> {
 
   @override
   Widget build(BuildContext context) {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
+    DateFormat format = new DateFormat("MM.dd.yyyy");
+    return ListView(
+      physics: const AlwaysScrollableScrollPhysics(),
       children: <Widget>[
         Padding(
           padding: const EdgeInsets.all(8.0),
           child: Text(
-            "PENDING TODAY " + now.toString(),
+            "Pending today: " + format.format(DateTime.now()),
             style: TextStyle(
-              fontSize: 16.0,
-              fontWeight: FontWeight.bold
+              fontSize: 20.0,
+              fontWeight: FontWeight.bold,
+              color: Colors.black38
             ),
           ),
         ),
@@ -60,10 +65,11 @@ class TaskListState extends State<TaskList> {
         Padding(
           padding: const EdgeInsets.all(8.0),
           child: Text(
-            "COMPLETED",
+            "Completed",
             style: TextStyle(
-                fontSize: 16.0,
-                fontWeight: FontWeight.bold
+              fontSize: 20.0,
+              fontWeight: FontWeight.bold,
+              color: Colors.black38
             ),
           ),
         ),
@@ -77,7 +83,7 @@ class TaskListState extends State<TaskList> {
                 child: CircularProgressIndicator(),
               );
             } else {
-              return pendingList(Task.filterByDone(true, snapshot.data));
+              return completedList(Task.filterByDone(true, snapshot.data));
             }
           },
         ),
@@ -92,7 +98,6 @@ class TaskListState extends State<TaskList> {
             AddEventScreen(
               task: task,
               date: date,
-              //TODO pass other tasks to addEvent
             ))
     ).then((value) {
       update();
@@ -165,26 +170,34 @@ class TaskListState extends State<TaskList> {
       builder: (context) {
         return AlertDialog(
           title: Text("Rating " + task.name),
-          content: RatingBar(
-            initialRating: 3,
-            direction: Axis.horizontal,
-            allowHalfRating: false,
-            unratedColor: Colors.grey[200],
-            itemCount: 5,
-            itemPadding: EdgeInsets.symmetric(horizontal: 4.0),
-            itemBuilder: (context, _) => Icon(
-              Icons.star,
-              color: Colors.amber,
-            ),
-            onRatingUpdate: (rating) {
-              _rating = rating.toInt();
-            },
+          content: Column(
+            crossAxisAlignment: CrossAxisAlignment.center,
+            mainAxisSize: MainAxisSize.min,
+            children: <Widget>[
+              Text("Rate your overall experience with " + task.name),
+              Padding(
+                padding: const EdgeInsets.symmetric(vertical: 8.0),
+                child: RatingBar(
+                  initialRating: 3,
+                  direction: Axis.horizontal,
+                  allowHalfRating: false,
+                  unratedColor: Colors.grey[200],
+                  itemCount: 5,
+                  itemPadding: EdgeInsets.symmetric(horizontal: 4.0),
+                  itemBuilder: (context, _) => Icon(
+                    Icons.star,
+                    color: Colors.amber,
+                  ),
+                  onRatingUpdate: (rating) {
+                    _rating = rating.toInt();
+                  },
+                ),
+              ),
+            ],
           ),
           actions: <Widget>[
             FlatButton(
               onPressed: (){
-                print(_rating);
-                Navigator.pop(context);
                 res = true;
                 dbProvider.update(new Task.withId(
                   task.id,
@@ -196,7 +209,7 @@ class TaskListState extends State<TaskList> {
                   task.end,
                   1,
                   _rating
-                ));
+                )).then((value) => Navigator.pop(context));
               },
               child: Text("RATE"),
             )
@@ -207,39 +220,143 @@ class TaskListState extends State<TaskList> {
     return res;
   }
 
+  void _confirmDelete(Task task) async {
+    await showDialog(
+        context: context,
+        builder: (context) {
+      return AlertDialog(
+        title: Text("Deleting " + task.name),
+        content: Text(
+          "Are you sure you want to delete " + task.name + "?"
+        ),
+        actions: <Widget>[
+          FlatButton(
+            onPressed: (){
+              dbProvider.delete(task.id).then((value)=>update());
+              Navigator.pop(context);
+            },
+            child: Text("DELETE"),
+          ),
+          FlatButton(
+            onPressed: (){
+              Navigator.pop(context);
+            },
+            child: Text("CANCEL"),
+          )
+        ],
+      );
+    }
+    );
+  }
+
+  void _confirmReverse(Task task) async {
+    await showDialog(
+        context: context,
+        builder: (context) {
+          return AlertDialog(
+            title: Text("Retrieving " + task.name),
+            content: Text(
+                task.name + " will be marked as not completed."
+            ),
+            actions: <Widget>[
+              FlatButton(
+                onPressed: (){
+                  dbProvider.update(new Task.withId(
+                    task.id,
+                    task.name,
+                    task.desc,
+                    task.type,
+                    task.date,
+                    task.start,
+                    task.end,
+                    0,
+                    0
+                  )).then((value) => update());
+                  Navigator.pop(context);
+                },
+                child: Text("CONFIRM"),
+              ),
+              FlatButton(
+                onPressed: (){
+                  Navigator.pop(context);
+                },
+                child: Text("CANCEL"),
+              )
+            ],
+          );
+        }
+    );
+  }
+
+  void _select(Choice choice, Task task){
+    switch(choice){
+      case Choice.delete:
+        _confirmDelete(task);
+        return;
+      case Choice.update:
+        _goToEdit(task);
+        return;
+      case Choice.reverse:
+        _confirmReverse(task);
+        return;
+      default:
+        return;
+    }
+
+  }
+
   Widget pendingList(List<Task> tasks){
+    if(tasks.length == 0){
+      return Padding(
+        padding: EdgeInsets.symmetric(vertical: 8.0),
+        child: Center(
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.center,
+            children: <Widget>[
+              Text("No more tasks for today!")
+            ],
+          ),
+        ),
+      );
+    }
     return ListView.separated(
       separatorBuilder: (context, index){
         return Divider(height: 2.0);
       },
       itemCount: tasks.length,
+      physics: const NeverScrollableScrollPhysics(),
       shrinkWrap: true,
       itemBuilder: (context, index){
-        String _subtitle = tasks[index].date + " " + tasks[index].start + "-" + tasks[index].end + " " + tasks[index].done.toString();
+        String _subtitle = tasks[index].start + " - " + tasks[index].end;
         return Dismissible(
           key: Key(UniqueKey().toString()),
           background: markSkippedBackground(),
           secondaryBackground: markDoneBackground(),
-          confirmDismiss: (direction) async {
-            if(direction == DismissDirection.endToStart){
-              final res = await rateTask(tasks[index]);
-              print(res);
-              return res;
+          onDismissed: (direction) async {
+            Task toRemove = tasks[index];
+            print(toRemove.name);
+            int removeIndex = tasks.indexWhere((task) => task.id == toRemove.id);
+            tasks.removeAt(removeIndex);
+            print(toRemove.name);
+            if(direction == DismissDirection.endToStart) {
+              rateTask(toRemove);//.then((value) => update());
             }
-            dbProvider.update(new Task.withId(
-                tasks[index].id,
-                tasks[index].name,
-                tasks[index].desc,
-                tasks[index].type,
-                tasks[index].date,
-                tasks[index].start,
-                tasks[index].end,
+            if(direction == DismissDirection.startToEnd) {
+              dbProvider.update(new Task.withId(
+                toRemove.id,
+                toRemove.name,
+                toRemove.desc,
+                toRemove.type,
+                toRemove.date,
+                toRemove.start,
+                toRemove.end,
                 -1,
                 0
-            ));
-            return true;
+              ));//.then((value) => update());
+            }
+
           },
-          onDismissed: (direction){update();},
           child: ListTile(
             leading: Icon(
               Icons.face,
@@ -247,14 +364,68 @@ class TaskListState extends State<TaskList> {
             ),
             title: Text(tasks[index].name),
             subtitle: Text(_subtitle),
-            onTap: (){_goToEdit(tasks[index]);},
-            trailing: IconButton(
-              icon: Icon(Icons.close),
-              onPressed: (){
-                dbProvider.delete(tasks[index].id);
-                update();
+            trailing: PopupMenuButton(
+              onSelected: (choice){_select(choice, tasks[index]);},
+              itemBuilder: (context){
+                return <PopupMenuEntry<Choice>>[
+                  PopupMenuItem<Choice>(
+                    child: Text("Update task"),
+                    value: Choice.update,
+                  ),
+                  PopupMenuItem<Choice>(
+                    child: Text("Delete task"),
+                    value: Choice.delete,
+                  )
+                ];
               },
-            ),
+            )
+          ),
+        );
+      },
+    );
+  }
+
+  Widget completedList(List<Task> tasks){
+    Color dictateColor(Task task){
+      if(task.done == 1){
+        return Colors.greenAccent;
+      }
+      return Colors.redAccent[100];
+    }
+    return ListView.builder(
+      physics: const NeverScrollableScrollPhysics(),
+      itemCount: tasks.length,
+      shrinkWrap: true,
+      itemBuilder: (context, index){
+        String _subtitle = tasks[index].start + " - " + tasks[index].end;
+        return Container(
+          color: dictateColor(tasks[index]),
+          child: ListTile(
+              leading: Icon(
+                Icons.face,
+                size: 44.0,
+              ),
+              title: Text(tasks[index].name),
+              subtitle: Text(_subtitle),
+              trailing: PopupMenuButton(
+                onSelected: (choice){_select(choice, tasks[index]);},
+                itemBuilder: (context){
+                  return <PopupMenuEntry<Choice>>[
+                    PopupMenuItem<Choice>(
+                      child: Text("Update task"),
+                      value: Choice.update,
+                    ),
+                    PopupMenuItem<Choice>(
+                      child: Text("Delete task"),
+                      value: Choice.delete,
+                    ),
+                    PopupMenuItem<Choice>(
+                      child: Text("Mark task undone"),
+                      value: Choice.reverse,
+                    )
+                  ];
+                },
+              )
           ),
         );
       },

@@ -1,3 +1,5 @@
+import 'package:intl/intl.dart';
+
 class Task {
   int _id;
   String _name;
@@ -71,16 +73,26 @@ class Task {
     this._rating = o["rating"];
   }
 
-  static DateTime formDate(Task task) {
-    String date = task.date;
-    String time = task.start;
+  //Return DateTime of the task's start
+  DateTime formStartDate() {
+    String date = this.date;
+    String time = this.start;
     return DateTime.parse(date + " " + time);
   }
 
-  static void sortByTime(List<Task> tasks) {
-    tasks.sort((a, b) => formDate(a).compareTo(formDate(b)));
+  //Return DateTime of the task's end
+  DateTime formEndDate() {
+    String date = this.date;
+    String time = this.end;
+    return DateTime.parse(date + " " + time);
   }
 
+  //Sorts task by their time. Prerequisite: Tasks should not be coinciding.
+  static void sortByTime(List<Task> tasks) {
+    tasks.sort((a, b) => a.formStartDate().compareTo(b.formStartDate()));
+  }
+
+  //Only returns the tasks with a given completion status
   static List<Task> filterByDone(bool done, List<Task> tasks){
     List<Task> result = new List<Task>();
     if(done) {
@@ -100,11 +112,16 @@ class Task {
     return result;
   }
 
-  static List<Task> filterByDate(DateTime date, List<Task> tasks){
+  //Only returns the tasks with a given date.
+  static List<Task> filterByDate(DateTime date, List<Task> tasks) {
+    DateFormat format = new DateFormat("yyyy-MM-dd");
     List<Task> result = new List<Task>();
-    for(int i = 0; i < tasks.length; i++){
-      DateTime taskDate = formDate(tasks[i]);
-      if(taskDate.difference(date).inDays < 1){
+
+    String key = format.format(date);
+    for(int i = 0; i < tasks.length; i++) {
+      DateTime taskDate = tasks[i].formStartDate();
+      String toCompare = format.format(taskDate);
+      if(key.compareTo(toCompare) == 0) {
         result.add(tasks[i]);
       }
     }

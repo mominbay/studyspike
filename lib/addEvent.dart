@@ -45,6 +45,8 @@ class AddEventScreenState extends State<AddEventScreen> {
     if(widget.task != null) {
       eventName.text = widget.task.name;
       eventDesc.text = widget.task.desc;
+      eventStart = widget.task.formStartDate();
+      eventEnd = widget.task.formEndDate();
       startDisplay = widget.task.start;
       endDisplay = widget.task.end;
       eventType = widget.task.type;
@@ -89,20 +91,21 @@ class AddEventScreenState extends State<AddEventScreen> {
       fontWeight: FontWeight.w400
   );
 
-  bool _verify(){
-    if(_formsAreComplete() && _timesAreValid()){
+  //Submit is disabled until all inputs are verified
+  bool _verify(List<Task> others){
+    if(_formsAreComplete() && _timesAreValid() && _overlapping(others)){
       return true;
     }
     return false;
   }
-
+  //fields must be complete
   bool _formsAreComplete(){
     if(eventName.text == "" || startDisplay == null ||  endDisplay == null || eventType == null){
       return false;
     }
     return true;
   }
-
+  //tasks must be over 30 minutes
   bool _timesAreValid(){
     if(eventStart != null && eventEnd != null){
       if(eventEnd.difference(eventStart).inMinutes < 30){
@@ -112,19 +115,37 @@ class AddEventScreenState extends State<AddEventScreen> {
     }
     return true;
   }
-
-  /* bool _overlapping(){
-    for(int i = 0; i < otherTasks.length; i++){
-      DateTime otherTaskStart = DateTime.parse(widget.otherTasks[i].date + " " + widget.otherTasks[i].start);
-      DateTime otherTaskEnd = DateTime.parse(widget.otherTasks[i].date + " " + widget.otherTasks[i].end);
-      if(otherTaskStart.compareTo(eventStart) > 0 && otherTaskStart.compareTo(eventEnd) < 0){
-        return false;
-      } else if (otherTaskEnd.compareTo(eventStart) > 0 && otherTaskEnd.compareTo(eventEnd) < 0){
-        return false;
+  //activity cannot coincide with other tasks
+  bool _overlapping(List<Task> others){
+    List<Task> withoutDuple = new List<Task>.from(others);
+    if(widget.task != null) {
+      int index = withoutDuple.indexWhere((task) => task.id == widget.task.id);
+      withoutDuple.removeAt(index);
+    }
+    if(eventStart != null && eventEnd != null) {
+      for (int i = 0; i < withoutDuple.length; i++) {
+        DateTime otherTaskStart = withoutDuple[i].formStartDate();
+        DateTime otherTaskEnd = withoutDuple[i].formEndDate();
+        if (eventStart.compareTo(otherTaskStart) == 0 ||
+            eventEnd.compareTo(otherTaskStart) == 0) {
+          return false;
+        }
+        if (eventStart.compareTo(otherTaskStart) > 0 &&
+            eventStart.compareTo(otherTaskEnd) < 0) {
+          return false;
+        }
+        if (eventEnd.compareTo(otherTaskStart) > 0 &&
+            eventEnd.compareTo(otherTaskEnd) < 0) {
+          return false;
+        }
+        if (eventStart.compareTo(otherTaskStart) < 0 &&
+            eventEnd.compareTo(otherTaskEnd) > 0) {
+          return false;
+        }
       }
     }
     return true;
-  } */
+  }
 
   void _post() async {
     setState(() {
@@ -308,13 +329,11 @@ class AddEventScreenState extends State<AddEventScreen> {
                       minute = "0" + minute;
                     }
                     setState(() {
-                      eventStart = time;
+                      eventStart = time.subtract(Duration(seconds: time.second));
                       startDisplay =  hour + ":" + minute;
                     });
-                    int index = eventStart.toString().indexOf(" ");
-                    print(eventStart.toString().substring(0, index));
                   },
-                  currentTime: DateTime.now(),
+                  currentTime: eventStart != null ? eventStart: widget.date.add(Duration(hours: 8)),
                   locale: LocaleType.en
                 );
               },
@@ -373,12 +392,13 @@ class AddEventScreenState extends State<AddEventScreen> {
                       minute = "0" + minute;
                     }
                     setState(() {
-                      eventEnd = time;
+                      eventEnd = time.subtract(Duration(seconds: time.second));
                       endDisplay = hour + ":" + minute;
                     });
-                    print(eventEnd);
                   },
-                  currentTime: DateTime.now(),
+                  currentTime: eventEnd != null ? eventEnd:
+                  eventStart != null ? eventStart.add(Duration(minutes: 30)):
+                  widget.date.add(Duration(hours: 8)),
                   locale: LocaleType.en
               );
             },
@@ -457,7 +477,7 @@ class AddEventScreenState extends State<AddEventScreen> {
     );
   }
 
-  Widget submitButton(){
+  Widget submitButton(List<Task> others){
     if(operating){
       return Center(
         child: CircularProgressIndicator(),
@@ -474,7 +494,7 @@ class AddEventScreenState extends State<AddEventScreen> {
         child: Text(
           "SAVE TASK"
         ),
-        onPressed: _verify() ? (){_post();} : null,
+        onPressed: _verify(others) ? (){_post();} : null,
         ),
     );
   }
@@ -490,21 +510,45 @@ class AddEventScreenState extends State<AddEventScreen> {
         backgroundColor: Color.fromRGBO(81, 218, 207, 1),
       ),
       resizeToAvoidBottomPadding: false,
-      body: Padding(
-        padding: const EdgeInsets.symmetric(horizontal: 24.0),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: <Widget>[
-            SizedBox(height: 20.0),
-            nameInput(),
-            descInput(),
-            startInput(),
-            endInput(),
-            typeInput(),
-            errorMessage(_formsAreComplete(), "Please complete all fields"),
-            errorMessage(_timesAreValid(), "An activity must be at least 30 minutes"),
-            submitButton()
-          ],
+      body: SingleChildScrollView(
+        scrollDirection: Axis.vertical,
+        child: Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 24.0),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: <Widget>[
+              SizedBox(height: 20.0),
+              nameInput(),
+              descInput(),
+              startInput(),
+              endInput(),
+              typeInput(),
+              errorMessage(_formsAreComplete(), "Please complete all fields"),
+              errorMessage(_timesAreValid(), "An activity must be at least 30 minutes"),
+              FutureBuilder(
+                future: otherTasks,
+                builder: (context, snapshot) {
+                  if (snapshot.hasError){
+                    return Text("Error");
+                  } else if (!snapshot.hasData){
+                    return SizedBox(height: 20.0);
+                  }
+                  return errorMessage(_overlapping(snapshot.data), "Activities cannot coincide");
+                },
+              ),
+              FutureBuilder(
+                future: otherTasks,
+                builder: (context, snapshot) {
+                  if (snapshot.hasError){
+                    return Text("Error");
+                  } else if (!snapshot.hasData){
+                    return SizedBox(height: 20.0);
+                  }
+                  return submitButton(snapshot.data);
+                },
+              ),
+            ],
+          ),
         ),
       ),
     );
