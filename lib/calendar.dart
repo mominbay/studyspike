@@ -7,6 +7,7 @@ import 'package:intl/intl.dart' show DateFormat;
 import 'package:spike_plan/db/database.dart';
 import 'package:spike_plan/db/task.dart';
 import 'package:spike_plan/dayview.dart';
+import 'package:spike_plan/taskview.dart';
 
 class TaskCalendar extends StatefulWidget{
   @override
@@ -16,18 +17,20 @@ class TaskCalendar extends StatefulWidget{
 }
 
 class TaskCalendarState extends State<TaskCalendar> {
+  String value = "not updated yet";
   DBProvider dbProvider = new DBProvider();
-  Future<List<Task>> allTasks;
-
-  @override
-  void initState() {
-    allTasks = dbProvider.getAllTasks();
-    super.initState();
-  }
+  List<Task> allTasks;
 
   void update(){
-    setState(() {
-      allTasks = dbProvider.getAllTasks();
+    Future<List<Task>> tasksFuture = dbProvider.getAllTasks();
+    tasksFuture.then((data) {
+      List<Task> tasks = new List<Task>();
+      for(int i = 0; i < data.length; i++) {
+        tasks.add(data[i]);
+      }
+      setState(() {
+        allTasks = tasks;
+      });
     });
   }
 
@@ -116,11 +119,20 @@ class TaskCalendarState extends State<TaskCalendar> {
 
   @override
   Widget build(BuildContext context) {
+    print("I was built");
+    if(allTasks == null) {
+      update();
+      return Center(
+        child: CircularProgressIndicator(),
+      );
+    }
+    final currentValue = ParentProvider.of(context).title;
     return SingleChildScrollView(
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         mainAxisAlignment: MainAxisAlignment.start,
         children: <Widget>[
+          Text(currentValue ?? value),
           Container(
             margin: EdgeInsets.all(16.0),
             child: Row(
@@ -161,22 +173,8 @@ class TaskCalendarState extends State<TaskCalendar> {
           ),
           Container(
             margin: EdgeInsets.symmetric(horizontal: 16.0),
-            child: FutureBuilder(
-              future: allTasks,
-              builder: (context, snapshot) {
-                if (snapshot.hasError) {
-                  return Text("Data has error");
-                } else if (!snapshot.hasData) {
-                  return CircularProgressIndicator();
-                } else {
-                  var data = snapshot.data;
-                  return Container(
-                    child: _calendarCarouselNoHeader(_setMarkedDates(data)),
-                  );
-                }
-              }
-            ),
-          ), //
+            child: _calendarCarouselNoHeader(_setMarkedDates(allTasks)),
+          ),
         ],
       ),
     );

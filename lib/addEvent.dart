@@ -23,7 +23,7 @@ class AddEventScreen extends StatefulWidget {
 class AddEventScreenState extends State<AddEventScreen> {
   DBProvider dbProvider = new DBProvider();
 
-  Future<List<Task>> otherTasks;
+  List<Task> otherTasks;
 
   TextEditingController eventName = new TextEditingController();
   TextEditingController eventDesc = new TextEditingController();
@@ -40,8 +40,6 @@ class AddEventScreenState extends State<AddEventScreen> {
   //get other tasks. if called with another event, fill fields automatically.
   @override
   void initState() {
-    otherTasks = dbProvider.getByDate(widget.date);
-    super.initState();
     if(widget.task != null) {
       eventName.text = widget.task.name;
       eventDesc.text = widget.task.desc;
@@ -53,12 +51,12 @@ class AddEventScreenState extends State<AddEventScreen> {
       eventDone = widget.task.done;
       eventRating = widget.task.rating;
     }
+    super.initState();
   }
 
 
   //if called with another event, change header text
   String _headerText() {
-
     DateFormat format = new DateFormat("MM.dd.yyyy");
     String headerDate = format.format(widget.date);
     String result;
@@ -68,6 +66,19 @@ class AddEventScreenState extends State<AddEventScreen> {
       result = "Creating new task for " + headerDate;
     }
     return result;
+  }
+
+  void update() async {
+    Future<List<Task>> futureTasks = dbProvider.getByDate(widget.date);
+    futureTasks.then((data){
+      List<Task> tasks = new List<Task>();
+      for(int i = 0; i < data.length; i++) {
+        tasks.add(data[i]);
+      }
+      setState(() {
+        otherTasks = tasks;
+      });
+    });
   }
 
   @override
@@ -501,6 +512,9 @@ class AddEventScreenState extends State<AddEventScreen> {
 
   @override
   Widget build(BuildContext context) {
+    if(otherTasks == null) {
+      update();
+    }
     return Scaffold(
       appBar: AppBar(
         title: Text(
@@ -525,28 +539,8 @@ class AddEventScreenState extends State<AddEventScreen> {
               typeInput(),
               errorMessage(_formsAreComplete(), "Please complete all fields"),
               errorMessage(_timesAreValid(), "An activity must be at least 30 minutes"),
-              FutureBuilder(
-                future: otherTasks,
-                builder: (context, snapshot) {
-                  if (snapshot.hasError){
-                    return Text("Error");
-                  } else if (!snapshot.hasData){
-                    return SizedBox(height: 20.0);
-                  }
-                  return errorMessage(_overlapping(snapshot.data), "Activities cannot coincide");
-                },
-              ),
-              FutureBuilder(
-                future: otherTasks,
-                builder: (context, snapshot) {
-                  if (snapshot.hasError){
-                    return Text("Error");
-                  } else if (!snapshot.hasData){
-                    return SizedBox(height: 20.0);
-                  }
-                  return submitButton(snapshot.data);
-                },
-              ),
+              otherTasks != null ? errorMessage(_overlapping(otherTasks), "Activities cannot coincide") : CircularProgressIndicator(),
+              otherTasks != null ? submitButton(otherTasks) : SizedBox(height: 10.0),
             ],
           ),
         ),

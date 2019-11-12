@@ -8,6 +8,11 @@ import 'package:intl/intl.dart';
 enum Choice {update, delete, reverse}
 
 class TaskList extends StatefulWidget {
+  final String title;
+  final void Function(String text) child2Action;
+
+  const TaskList({Key key, this.title, this.child2Action}) : super(key: key);
+
   @override
   State<StatefulWidget> createState() {
     return TaskListState();
@@ -17,22 +22,29 @@ class TaskList extends StatefulWidget {
 class TaskListState extends State<TaskList> {
   DBProvider dbProvider = new DBProvider();
   DateTime now = DateTime.now();
-  Future<List<Task>> allTasks;
+  List<Task> todayTasks;
 
-  @override
-  void initState() {
-    allTasks = dbProvider.getAllTasks();
-    super.initState();
-  }
-
-  void update(){
-    setState(() {
-      allTasks = dbProvider.getAllTasks();
+  void update() async {
+    Future<List<Task>> futureTasks = dbProvider.getByDate(now);
+    futureTasks.then((data){
+      List<Task> tasks = new List<Task>();
+      for(int i = 0; i < data.length; i++) {
+        tasks.add(data[i]);
+      }
+      setState(() {
+        todayTasks = tasks;
+      });
     });
   }
 
   @override
   Widget build(BuildContext context) {
+    if(todayTasks == null) {
+      update();
+      return Center(
+        child: CircularProgressIndicator(),
+      );
+    }
     DateFormat format = new DateFormat("MM.dd.yyyy");
     return ListView(
       physics: const AlwaysScrollableScrollPhysics(),
@@ -48,20 +60,7 @@ class TaskListState extends State<TaskList> {
             ),
           ),
         ),
-        FutureBuilder(
-          future: allTasks,
-          builder: (context, snapshot){
-            if(snapshot.hasError){
-              return Text("Data has error.");
-            } else if (!snapshot.hasData){
-              return Center(
-                child: CircularProgressIndicator(),
-              );
-            } else {
-              return pendingList(Task.filterByDone(false, Task.filterByDate(now, snapshot.data)));
-            }
-          },
-        ),
+        pendingList(Task.filterByDone(false, todayTasks)),
         Padding(
           padding: const EdgeInsets.all(8.0),
           child: Text(
@@ -73,20 +72,7 @@ class TaskListState extends State<TaskList> {
             ),
           ),
         ),
-        FutureBuilder(
-          future: allTasks,
-          builder: (context, snapshot){
-            if(snapshot.hasError){
-              return Text("Data has error.");
-            } else if (!snapshot.hasData){
-              return Center(
-                child: CircularProgressIndicator(),
-              );
-            } else {
-              return completedList(Task.filterByDone(true, snapshot.data));
-            }
-          },
-        ),
+        completedList(Task.filterByDone(true, todayTasks))
       ],
     );
   }
@@ -209,7 +195,8 @@ class TaskListState extends State<TaskList> {
                   task.end,
                   1,
                   _rating
-                )).then((value) => Navigator.pop(context));
+                )).then((value) => update());
+                Navigator.pop(context);
               },
               child: Text("RATE"),
             )
@@ -298,6 +285,7 @@ class TaskListState extends State<TaskList> {
         return;
       case Choice.reverse:
         _confirmReverse(task);
+        widget.child2Action("Update from child1");
         return;
       default:
         return;
@@ -335,12 +323,10 @@ class TaskListState extends State<TaskList> {
           secondaryBackground: markDoneBackground(),
           onDismissed: (direction) async {
             Task toRemove = tasks[index];
-            print(toRemove.name);
             int removeIndex = tasks.indexWhere((task) => task.id == toRemove.id);
             tasks.removeAt(removeIndex);
-            print(toRemove.name);
             if(direction == DismissDirection.endToStart) {
-              rateTask(toRemove);//.then((value) => update());
+              rateTask(toRemove).then((value) => update());
             }
             if(direction == DismissDirection.startToEnd) {
               dbProvider.update(new Task.withId(
@@ -353,7 +339,7 @@ class TaskListState extends State<TaskList> {
                 toRemove.end,
                 -1,
                 0
-              ));//.then((value) => update());
+              )).then((value) => update());
             }
 
           },
