@@ -6,11 +6,13 @@ import 'package:intl/intl.dart';
 
 class AddEventScreen extends StatefulWidget {
   final DateTime date;
+  final List<Task> todayTasks;
   final Task task;
 
   AddEventScreen({
     Key key,
     this.date,
+    this.todayTasks,
     this.task,
   }) : super(key: key);
 
@@ -22,8 +24,6 @@ class AddEventScreen extends StatefulWidget {
 
 class AddEventScreenState extends State<AddEventScreen> {
   DBProvider dbProvider = new DBProvider();
-
-  List<Task> otherTasks;
 
   TextEditingController eventName = new TextEditingController();
   TextEditingController eventDesc = new TextEditingController();
@@ -68,19 +68,6 @@ class AddEventScreenState extends State<AddEventScreen> {
     return result;
   }
 
-  void update() async {
-    Future<List<Task>> futureTasks = dbProvider.getByDate(widget.date);
-    futureTasks.then((data){
-      List<Task> tasks = new List<Task>();
-      for(int i = 0; i < data.length; i++) {
-        tasks.add(data[i]);
-      }
-      setState(() {
-        otherTasks = tasks;
-      });
-    });
-  }
-
   @override
   void dispose() {
     // Clean up the controller when the widget is removed from the
@@ -103,8 +90,8 @@ class AddEventScreenState extends State<AddEventScreen> {
   );
 
   //Submit is disabled until all inputs are verified
-  bool _verify(List<Task> others){
-    if(_formsAreComplete() && _timesAreValid() && _overlapping(others)){
+  bool _verify(){
+    if(_formsAreComplete() && _timesAreValid() && _overlapping()){
       return true;
     }
     return false;
@@ -127,8 +114,8 @@ class AddEventScreenState extends State<AddEventScreen> {
     return true;
   }
   //activity cannot coincide with other tasks
-  bool _overlapping(List<Task> others){
-    List<Task> withoutDuple = new List<Task>.from(others);
+  bool _overlapping(){
+    List<Task> withoutDuple = new List<Task>.from(widget.todayTasks);
     if(widget.task != null) {
       int index = withoutDuple.indexWhere((task) => task.id == widget.task.id);
       withoutDuple.removeAt(index);
@@ -274,6 +261,7 @@ class AddEventScreenState extends State<AddEventScreen> {
               });
             },
             controller: eventDesc,
+            textInputAction: TextInputAction.done,
             maxLength: 150,
             maxLines: 4,
             style: inputStyle,
@@ -488,7 +476,7 @@ class AddEventScreenState extends State<AddEventScreen> {
     );
   }
 
-  Widget submitButton(List<Task> others){
+  Widget submitButton(){
     if(operating){
       return Center(
         child: CircularProgressIndicator(),
@@ -505,16 +493,13 @@ class AddEventScreenState extends State<AddEventScreen> {
         child: Text(
           "SAVE TASK"
         ),
-        onPressed: _verify(others) ? (){_post();} : null,
+        onPressed: _verify() ? (){_post();} : null,
         ),
     );
   }
 
   @override
   Widget build(BuildContext context) {
-    if(otherTasks == null) {
-      update();
-    }
     return Scaffold(
       appBar: AppBar(
         title: Text(
@@ -539,8 +524,8 @@ class AddEventScreenState extends State<AddEventScreen> {
               typeInput(),
               errorMessage(_formsAreComplete(), "Please complete all fields"),
               errorMessage(_timesAreValid(), "An activity must be at least 30 minutes"),
-              otherTasks != null ? errorMessage(_overlapping(otherTasks), "Activities cannot coincide") : CircularProgressIndicator(),
-              otherTasks != null ? submitButton(otherTasks) : SizedBox(height: 10.0),
+              widget.todayTasks != null ? errorMessage(_overlapping(), "Activities cannot coincide") : CircularProgressIndicator(),
+              widget.todayTasks != null ? submitButton() : SizedBox(height: 10.0),
             ],
           ),
         ),

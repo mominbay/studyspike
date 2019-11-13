@@ -10,6 +10,9 @@ import 'package:spike_plan/dayview.dart';
 import 'package:spike_plan/taskview.dart';
 
 class TaskCalendar extends StatefulWidget{
+  final void Function() updateAction;
+  const TaskCalendar({Key key, this.updateAction}) : super(key: key);
+
   @override
   State<StatefulWidget> createState() {
     return TaskCalendarState();
@@ -17,22 +20,7 @@ class TaskCalendar extends StatefulWidget{
 }
 
 class TaskCalendarState extends State<TaskCalendar> {
-  String value = "not updated yet";
   DBProvider dbProvider = new DBProvider();
-  List<Task> allTasks;
-
-  void update(){
-    Future<List<Task>> tasksFuture = dbProvider.getAllTasks();
-    tasksFuture.then((data) {
-      List<Task> tasks = new List<Task>();
-      for(int i = 0; i < data.length; i++) {
-        tasks.add(data[i]);
-      }
-      setState(() {
-        allTasks = tasks;
-      });
-    });
-  }
 
   DateTime _currentDate = new DateTime.now();
   DateTime _currentDate2 = new DateTime.now();
@@ -65,8 +53,11 @@ class TaskCalendarState extends State<TaskCalendar> {
 
   void _goToDay(DateTime date) async {
     Navigator.push(context,
-      MaterialPageRoute(builder: (builder) => DayView(date: date))
-    ).then((value) => update());
+      MaterialPageRoute(builder: (builder) => DayView(
+        updateAction: widget.updateAction,
+        date: date,
+      ))
+    ).then((value) => widget.updateAction);
   }
 
   Widget _calendarCarouselNoHeader(EventList<Event> events){
@@ -119,20 +110,12 @@ class TaskCalendarState extends State<TaskCalendar> {
 
   @override
   Widget build(BuildContext context) {
-    print("I was built");
-    if(allTasks == null) {
-      update();
-      return Center(
-        child: CircularProgressIndicator(),
-      );
-    }
-    final currentValue = ParentProvider.of(context).title;
+    final currentTasks = ParentProvider.of(context).allTasks;
     return SingleChildScrollView(
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         mainAxisAlignment: MainAxisAlignment.start,
         children: <Widget>[
-          Text(currentValue ?? value),
           Container(
             margin: EdgeInsets.all(16.0),
             child: Row(
@@ -173,7 +156,7 @@ class TaskCalendarState extends State<TaskCalendar> {
           ),
           Container(
             margin: EdgeInsets.symmetric(horizontal: 16.0),
-            child: _calendarCarouselNoHeader(_setMarkedDates(allTasks)),
+            child: _calendarCarouselNoHeader(_setMarkedDates(currentTasks)),
           ),
         ],
       ),

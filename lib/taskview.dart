@@ -2,6 +2,8 @@ import 'package:flutter/material.dart';
 import 'package:spike_plan/tasklist.dart';
 import 'package:spike_plan/calendar.dart';
 import 'package:extended_tabs/extended_tabs.dart';
+import 'package:spike_plan/db/database.dart';
+import 'package:spike_plan/db/task.dart';
 
 class TaskView extends StatefulWidget {
   @override
@@ -11,10 +13,10 @@ class TaskView extends StatefulWidget {
 }
 
 class ParentProvider extends InheritedWidget {
-  final String title;
+  final List<Task> allTasks;
   final Widget child;
 
-  ParentProvider({this.title, this.child});
+  ParentProvider({this.allTasks, this.child});
 
   @override
   bool updateShouldNotify(ParentProvider oldWidget) {
@@ -28,9 +30,23 @@ class ParentProvider extends InheritedWidget {
 
 class TaskViewState extends State<TaskView> with SingleTickerProviderStateMixin<TaskView>{
 
+  DBProvider dbProvider = new DBProvider();
+
   TabController _controller;
-  String myTitle = "My Parent Title";
-  String updateChild2Title;
+  List<Task> tasks;
+
+  void update() async {
+    Future<List<Task>> futureTasks = dbProvider.getAllTasks();
+    futureTasks.then((data){
+      List<Task> tasks = new List<Task>();
+      for(int i = 0; i < data.length; i++) {
+        tasks.add(data[i]);
+      }
+      setState(() {
+        this.tasks = tasks;
+      });
+    });
+  }
 
   @override
   void initState() {
@@ -47,46 +63,47 @@ class TaskViewState extends State<TaskView> with SingleTickerProviderStateMixin<
     super.dispose();
   }
 
-  void updateChild2(String text){
-    print("I was called");
-    setState(() {
-      updateChild2Title = text;
-    });
-  }
-
   @override
   Widget build(BuildContext context) {
-     return ParentProvider(
-       title: updateChild2Title,
-       child: Scaffold(
-         appBar: AppBar(
-           title: Text("Study Planner"),
-           bottom: TabBar(
-             controller: _controller,
-             tabs: <Widget>[
-               Tab(
-                   icon: Icon(Icons.list),
-                   text: "List",
-               ),
-               Tab(
-                 icon: Icon(Icons.calendar_today),
-                 text: "Calendar",
-               )
-             ],
-           ),
-         ),
-         body: ExtendedTabBarView(
-           controller: _controller,
-           physics: AlwaysScrollableScrollPhysics(),
-           cacheExtent: 1,
-           children: <Widget>[
-             TaskList(
-               child2Action: updateChild2,
-             ),
-             TaskCalendar(),
-           ],
-         ),
-       ),
-     );
+    if(tasks == null) {
+      update();
+      return Center(
+        child: CircularProgressIndicator(),
+      );
+    }
+    return ParentProvider(
+      allTasks: tasks,
+      child: Scaffold(
+        appBar: AppBar(
+          title: Text("Study Planner"),
+          bottom: TabBar(
+            controller: _controller,
+            tabs: <Widget>[
+              Tab(
+                icon: Icon(Icons.list),
+                text: "List",
+              ),
+              Tab(
+                icon: Icon(Icons.calendar_today),
+                text: "Calendar",
+              )
+            ],
+          ),
+        ),
+        body: ExtendedTabBarView(
+          controller: _controller,
+          physics: AlwaysScrollableScrollPhysics(),
+          cacheExtent: 1,
+          children: <Widget>[
+            TaskList(
+              updateAction: update,
+            ),
+            TaskCalendar(
+              updateAction: update,
+            ),
+          ],
+        ),
+      ),
+    );
   }
 }

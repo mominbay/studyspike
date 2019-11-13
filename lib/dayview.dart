@@ -5,9 +5,14 @@ import 'package:intl/intl.dart';
 import 'package:spike_plan/addEvent.dart';
 
 class DayView extends StatefulWidget {
+  final void Function() updateAction;
   final DateTime date;
 
-  DayView({Key key, this.date}) : super(key: key);
+  DayView({
+    Key key,
+    this.updateAction,
+    this.date,
+  }) : super(key: key);
 
   @override
   State<StatefulWidget> createState() {
@@ -17,18 +22,18 @@ class DayView extends StatefulWidget {
 
 class DayViewState extends State<DayView> {
   DBProvider dbProvider = new DBProvider();
-  Future<List<Task>> tasks;
+  List<Task> todayTasks;
 
-  //Get tasks of the day
-  @override
-  void initState() {
-    tasks = dbProvider.getByDate(widget.date);
-    super.initState();
-  }
-
-  void update(){
-    setState(() {
-      tasks = dbProvider.getByDate(widget.date);
+  void update() async {
+    Future<List<Task>> futureTasks = dbProvider.getByDate(widget.date);
+    futureTasks.then((data){
+      List<Task> tasks = new List<Task>();
+      for(int i = 0; i < data.length; i++) {
+        tasks.add(data[i]);
+      }
+      setState(() {
+        todayTasks = tasks;
+      });
     });
   }
 
@@ -37,8 +42,12 @@ class DayViewState extends State<DayView> {
     await Navigator.push(context,
       MaterialPageRoute(builder: (builder) => AddEventScreen(
         date: widget.date,
+        todayTasks: todayTasks,
       ))
-    ).then((value) => update());
+    ).then((value) {
+      widget.updateAction();
+      update();
+    });
   }
   //Generate dynamic list
   List<Widget> makeTaskCards(List<Task> tasks) {
@@ -73,6 +82,12 @@ class DayViewState extends State<DayView> {
 
   @override
   Widget build(BuildContext context) {
+    if(todayTasks == null) {
+      update();
+      return Center(
+        child: CircularProgressIndicator(),
+      );
+    }
     DateFormat viewFormat = new DateFormat("MM.dd.yyyy");
     String dateString = viewFormat.format(widget.date);
     return Scaffold(
@@ -100,27 +115,16 @@ class DayViewState extends State<DayView> {
             ),
           ];
         },
-        body: FutureBuilder(
-          future: tasks,
-          builder: (context, snapshot){
-            if(snapshot.hasError){
-              return Text("Data has error");
-            } else if (!snapshot.hasData) {
-              return Text("Wait please...");
-            } else {
-              return Padding(
-                padding: const EdgeInsets.symmetric(vertical: 8.0),
-                child: Container(
-                  height: 2000,
-                  color: Colors.yellow,
-                  child: Stack(
-                    children: makeTaskCards(snapshot.data),
-                  ),
-                ),
-              );
-            }
-          },
-        ),
+        body: Padding(
+          padding: const EdgeInsets.symmetric(vertical: 8.0),
+          child: Container(
+            height: 2000,
+            color: Colors.yellow,
+            child: Stack(
+              children: makeTaskCards(todayTasks),
+            ),
+          ),
+        )
       ),
       floatingActionButton: FloatingActionButton(
         child: Icon(

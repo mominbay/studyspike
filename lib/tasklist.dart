@@ -4,14 +4,14 @@ import 'package:spike_plan/db/task.dart';
 import 'package:spike_plan/addEvent.dart';
 import 'package:flutter_rating_bar/flutter_rating_bar.dart';
 import 'package:intl/intl.dart';
+import 'package:spike_plan/taskview.dart';
+import 'package:spike_plan/dayview.dart';
 
 enum Choice {update, delete, reverse}
 
 class TaskList extends StatefulWidget {
-  final String title;
-  final void Function(String text) child2Action;
-
-  const TaskList({Key key, this.title, this.child2Action}) : super(key: key);
+  final void Function() updateAction;
+  const TaskList({Key key, this.updateAction}) : super(key: key);
 
   @override
   State<StatefulWidget> createState() {
@@ -22,57 +22,64 @@ class TaskList extends StatefulWidget {
 class TaskListState extends State<TaskList> {
   DBProvider dbProvider = new DBProvider();
   DateTime now = DateTime.now();
-  List<Task> todayTasks;
-
-  void update() async {
-    Future<List<Task>> futureTasks = dbProvider.getByDate(now);
-    futureTasks.then((data){
-      List<Task> tasks = new List<Task>();
-      for(int i = 0; i < data.length; i++) {
-        tasks.add(data[i]);
-      }
-      setState(() {
-        todayTasks = tasks;
-      });
-    });
-  }
 
   @override
   Widget build(BuildContext context) {
-    if(todayTasks == null) {
-      update();
-      return Center(
-        child: CircularProgressIndicator(),
-      );
-    }
+    final currentTasks = ParentProvider.of(context).allTasks;
     DateFormat format = new DateFormat("MM.dd.yyyy");
     return ListView(
       physics: const AlwaysScrollableScrollPhysics(),
       children: <Widget>[
-        Padding(
-          padding: const EdgeInsets.all(8.0),
-          child: Text(
-            "Pending today: " + format.format(DateTime.now()),
-            style: TextStyle(
-              fontSize: 20.0,
-              fontWeight: FontWeight.bold,
-              color: Colors.black38
+        Container(
+          decoration: BoxDecoration(
+            color: Colors.white,
+            boxShadow: [
+              BoxShadow(
+                color: Colors.black12,
+                offset: Offset(0, 0),
+                blurRadius: 10.0,
+                spreadRadius: 0.1
+              ),
+            ]
+          ),
+          child: Padding(
+            padding: const EdgeInsets.all(8.0),
+            child: Text(
+              "Pending today: " + format.format(DateTime.now()),
+              style: TextStyle(
+                fontSize: 20.0,
+                fontWeight: FontWeight.bold,
+                color: Colors.black38
+              ),
             ),
           ),
         ),
-        pendingList(Task.filterByDone(false, todayTasks)),
-        Padding(
-          padding: const EdgeInsets.all(8.0),
-          child: Text(
-            "Completed",
-            style: TextStyle(
-              fontSize: 20.0,
-              fontWeight: FontWeight.bold,
-              color: Colors.black38
+        pendingList(Task.filterByDone(false, Task.filterByDate(now, currentTasks))),
+        Container(
+          decoration: BoxDecoration(
+            color: Colors.white,
+            boxShadow: [
+              BoxShadow(
+                color: Colors.black12,
+                offset: Offset(0, 1),
+                blurRadius: 10.0,
+                spreadRadius: 0.1
+              ),
+            ]
+          ),
+          child: Padding(
+            padding: const EdgeInsets.all(8.0),
+            child: Text(
+              "Completed",
+              style: TextStyle(
+                fontSize: 20.0,
+                fontWeight: FontWeight.bold,
+                color: Colors.black38
+              ),
             ),
           ),
         ),
-        completedList(Task.filterByDone(true, todayTasks))
+        completedList(Task.filterByDone(true, Task.filterByDate(now, currentTasks)))
       ],
     );
   }
@@ -80,14 +87,26 @@ class TaskListState extends State<TaskList> {
   void _goToEdit(Task task) async {
     DateTime date = DateTime.parse(task.date);
     await Navigator.push(context,
-        MaterialPageRoute(builder: (builder) =>
-            AddEventScreen(
-              task: task,
-              date: date,
-            ))
+      MaterialPageRoute(builder: (builder) =>
+        AddEventScreen(
+          task: task,
+          todayTasks: Task.filterByDate(date, ParentProvider
+            .of(context)
+            .allTasks),
+        date: date,
+      ))
     ).then((value) {
-      update();
+      widget.updateAction();
     });
+  }
+
+  void _goToDay() async {
+    Navigator.push(context,
+        MaterialPageRoute(builder: (builder) => DayView(
+          updateAction: widget.updateAction,
+          date: now.subtract(Duration(hours: 8)),
+        ))
+    ).then((value) => widget.updateAction);
   }
 
   Widget markSkippedBackground(){
@@ -149,7 +168,7 @@ class TaskListState extends State<TaskList> {
   }
 
   Future<bool> rateTask(Task task) async {
-    int _rating = 0;
+    int _rating = 3;
     bool res = false;
     await showDialog(
       context: context,
@@ -195,7 +214,7 @@ class TaskListState extends State<TaskList> {
                   task.end,
                   1,
                   _rating
-                )).then((value) => update());
+                ));
                 Navigator.pop(context);
               },
               child: Text("RATE"),
@@ -219,7 +238,7 @@ class TaskListState extends State<TaskList> {
         actions: <Widget>[
           FlatButton(
             onPressed: (){
-              dbProvider.delete(task.id).then((value)=>update());
+              dbProvider.delete(task.id).then((value)=>widget.updateAction());
               Navigator.pop(context);
             },
             child: Text("DELETE"),
@@ -258,7 +277,7 @@ class TaskListState extends State<TaskList> {
                     task.end,
                     0,
                     0
-                  )).then((value) => update());
+                  )).then((value) => widget.updateAction());
                   Navigator.pop(context);
                 },
                 child: Text("CONFIRM"),
@@ -285,7 +304,6 @@ class TaskListState extends State<TaskList> {
         return;
       case Choice.reverse:
         _confirmReverse(task);
-        widget.child2Action("Update from child1");
         return;
       default:
         return;
@@ -294,6 +312,16 @@ class TaskListState extends State<TaskList> {
   }
 
   Widget pendingList(List<Task> tasks){
+    String dictateIcon(Task task){
+      //TODO return task-type specific icons
+      String path;
+      switch(task.type){
+        default:
+          path = "error";
+      }
+      return path;
+    }
+
     if(tasks.length == 0){
       return Padding(
         padding: EdgeInsets.symmetric(vertical: 8.0),
@@ -302,7 +330,29 @@ class TaskListState extends State<TaskList> {
             mainAxisSize: MainAxisSize.min,
             crossAxisAlignment: CrossAxisAlignment.center,
             children: <Widget>[
-              Text("No more tasks for today!")
+              Icon( //TODO return a proper image
+                Icons.insert_emoticon,
+                size: 64.0,
+              ),
+              SizedBox(height: 8.0),
+              Text(
+                "No more tasks for today!",
+                style: TextStyle(
+                  fontSize: 16.0
+                ),
+              ),
+              SizedBox(height: 8.0),
+              RaisedButton(
+                color: Colors.blue,
+                textColor: Colors.white,
+                padding: const EdgeInsets.all(0.0),
+                onPressed: (){
+                  _goToDay();
+                },
+                child: Text(
+                  "ADD MORE?"
+                ),
+              ),
             ],
           ),
         ),
@@ -326,7 +376,7 @@ class TaskListState extends State<TaskList> {
             int removeIndex = tasks.indexWhere((task) => task.id == toRemove.id);
             tasks.removeAt(removeIndex);
             if(direction == DismissDirection.endToStart) {
-              rateTask(toRemove).then((value) => update());
+              rateTask(toRemove).then((value) => widget.updateAction());
             }
             if(direction == DismissDirection.startToEnd) {
               dbProvider.update(new Task.withId(
@@ -339,7 +389,7 @@ class TaskListState extends State<TaskList> {
                 toRemove.end,
                 -1,
                 0
-              )).then((value) => update());
+              )).then((value) => widget.updateAction());
             }
 
           },
@@ -374,22 +424,54 @@ class TaskListState extends State<TaskList> {
   Widget completedList(List<Task> tasks){
     Color dictateColor(Task task){
       if(task.done == 1){
-        return Colors.greenAccent;
+        return Colors.lightGreen;
       }
-      return Colors.redAccent[100];
+      return Colors.redAccent;
     }
-    return ListView.builder(
+    IconData dictateIcon(Task task){
+      if(task.done == 1){
+        return Icons.check;
+      }
+      return Icons.close;
+    }
+    Row ratingBar(Task task){
+      List<Widget> stars = new List<Widget>();
+      for(int i = 0; i < task.rating; i++){
+        stars.add(new Icon(
+          Icons.star,
+          size: 16.0,
+          color: Colors.amber,
+        ));
+      }
+      for(int i = 0; i < 5 - task.rating; i++){
+        stars.add(new Icon(
+          Icons.star,
+          size: 16.0,
+          color: Colors.grey,
+        ));
+      }
+      stars.add(SizedBox(width: 64.0,));
+      return new Row(
+        mainAxisSize: MainAxisSize.min,
+        children: stars,
+      );
+    }
+    return ListView.separated(
       physics: const NeverScrollableScrollPhysics(),
       itemCount: tasks.length,
       shrinkWrap: true,
+      separatorBuilder: (context, index){
+        return Divider(height: 2.0);
+      },
       itemBuilder: (context, index){
         String _subtitle = tasks[index].start + " - " + tasks[index].end;
-        return Container(
-          color: dictateColor(tasks[index]),
-          child: ListTile(
+        return Stack(
+          children: <Widget>[
+            ListTile(
               leading: Icon(
-                Icons.face,
+                dictateIcon(tasks[index]),
                 size: 44.0,
+                color: dictateColor(tasks[index]),
               ),
               title: Text(tasks[index].name),
               subtitle: Text(_subtitle),
@@ -412,7 +494,14 @@ class TaskListState extends State<TaskList> {
                   ];
                 },
               )
-          ),
+            ),
+            Positioned.fill(
+              child: Align(
+                alignment: Alignment.centerRight,
+                child: ratingBar(tasks[index])
+              ),
+            )
+          ]
         );
       },
     );
