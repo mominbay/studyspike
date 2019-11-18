@@ -291,65 +291,65 @@ class AddEventScreenState extends State<AddEventScreen> {
 
   Widget startInput(){
     return Padding(
-        padding: const EdgeInsets.symmetric(vertical: 2.0),
-        child: Row(
-          children: <Widget>[
-            Container(
-              width: 120.0,
-              child: Row(
-                children: <Widget>[
-                  Padding(
-                    padding: const EdgeInsets.only(right: 8.0),
-                    child: Icon(Icons.access_time),
-                  ),
-                  Text(
-                    "Starts at: ",
-                    style: labelStyle,
-                  ),
-                ],
-              ),
+      padding: const EdgeInsets.symmetric(vertical: 2.0),
+      child: Row(
+        children: <Widget>[
+          Container(
+            width: 120.0,
+            child: Row(
+              children: <Widget>[
+                Padding(
+                  padding: const EdgeInsets.only(right: 8.0),
+                  child: Icon(Icons.access_time),
+                ),
+                Text(
+                  "Starts at: ",
+                  style: labelStyle,
+                ),
+              ],
             ),
-            FlatButton(
-              materialTapTargetSize: MaterialTapTargetSize.shrinkWrap,
-              onPressed: (){
-                DatePicker.showTimePicker(
-                  context,
-                  theme: DatePickerTheme(
-                    containerHeight: 210.0
-                  ),
-                  showTitleActions: true,
-                  onConfirm: (time){
-                    String hour = time.hour.toString();
-                    String minute = time.minute.toString();
-                    if(hour.length == 1){
-                      hour = "0" + hour;
-                    }
-                    if(minute.length == 1){
-                      minute = "0" + minute;
-                    }
-                    setState(() {
-                      eventStart = time.subtract(Duration(seconds: time.second));
-                      startDisplay =  hour + ":" + minute;
-                    });
-                  },
-                  currentTime: eventStart != null ? eventStart: widget.date.add(Duration(hours: 8)),
-                  locale: LocaleType.en
-                );
-              },
-              child: Align(
-                alignment: Alignment.centerLeft,
-                child: Text(
-                  startDisplay,
-                  style: TextStyle(
-                    color: Color.fromRGBO(164, 164, 164, 1),
-                    fontSize: 20.0
-                  ),
+          ),
+          FlatButton(
+            materialTapTargetSize: MaterialTapTargetSize.shrinkWrap,
+            onPressed: (){
+              DatePicker.showTimePicker(
+                context,
+                theme: DatePickerTheme(
+                  containerHeight: 210.0
+                ),
+                showTitleActions: true,
+                onConfirm: (time){
+                  String hour = time.hour.toString();
+                  String minute = time.minute.toString();
+                  if(hour.length == 1){
+                    hour = "0" + hour;
+                  }
+                  if(minute.length == 1){
+                    minute = "0" + minute;
+                  }
+                  setState(() {
+                    eventStart = time.subtract(Duration(seconds: time.second));
+                    startDisplay =  hour + ":" + minute;
+                  });
+                },
+                currentTime: eventStart != null ? eventStart: widget.date.add(Duration(hours: 8)),
+                locale: LocaleType.en
+              );
+            },
+            child: Align(
+              alignment: Alignment.centerLeft,
+              child: Text(
+                startDisplay,
+                style: TextStyle(
+                  color: Color.fromRGBO(164, 164, 164, 1),
+                  fontSize: 20.0
                 ),
               ),
-            )
-          ],
-        ),
-      );
+            ),
+          )
+        ],
+      ),
+    );
   }
 
   Widget endInput(){
@@ -506,7 +506,6 @@ class AddEventScreenState extends State<AddEventScreen> {
           _headerText()
         ),
         centerTitle: true,
-        backgroundColor: Color.fromRGBO(81, 218, 207, 1),
       ),
       resizeToAvoidBottomPadding: false,
       body: SingleChildScrollView(

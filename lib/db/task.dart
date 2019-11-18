@@ -87,6 +87,12 @@ class Task {
     return DateTime.parse(date + " " + time);
   }
 
+  String formDuration() {
+    String start = this.start;
+    String end = this.end;
+    return start + " - " + end;
+  }
+
   //Sorts task by their time. Prerequisite: Tasks should not be coinciding.
   static void sortByTime(List<Task> tasks) {
     tasks.sort((a, b) => a.formStartDate().compareTo(b.formStartDate()));

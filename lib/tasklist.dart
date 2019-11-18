@@ -6,6 +6,7 @@ import 'package:flutter_rating_bar/flutter_rating_bar.dart';
 import 'package:intl/intl.dart';
 import 'package:spike_plan/taskview.dart';
 import 'package:spike_plan/dayview.dart';
+import 'package:spike_plan/tileHelpers.dart';
 
 enum Choice {update, delete, reverse}
 
@@ -312,16 +313,6 @@ class TaskListState extends State<TaskList> {
   }
 
   Widget pendingList(List<Task> tasks){
-    String dictateIcon(Task task){
-      //TODO return task-type specific icons
-      String path;
-      switch(task.type){
-        default:
-          path = "error";
-      }
-      return path;
-    }
-
     if(tasks.length == 0){
       return Padding(
         padding: EdgeInsets.symmetric(vertical: 8.0),
@@ -366,7 +357,6 @@ class TaskListState extends State<TaskList> {
       physics: const NeverScrollableScrollPhysics(),
       shrinkWrap: true,
       itemBuilder: (context, index){
-        String _subtitle = tasks[index].start + " - " + tasks[index].end;
         return Dismissible(
           key: Key(UniqueKey().toString()),
           background: markSkippedBackground(),
@@ -399,7 +389,7 @@ class TaskListState extends State<TaskList> {
               size: 44.0,
             ),
             title: Text(tasks[index].name),
-            subtitle: Text(_subtitle),
+            subtitle: Text(tasks[index].formDuration()),
             trailing: PopupMenuButton(
               onSelected: (choice){_select(choice, tasks[index]);},
               itemBuilder: (context){
@@ -422,40 +412,6 @@ class TaskListState extends State<TaskList> {
   }
 
   Widget completedList(List<Task> tasks){
-    Color dictateColor(Task task){
-      if(task.done == 1){
-        return Colors.lightGreen;
-      }
-      return Colors.redAccent;
-    }
-    IconData dictateIcon(Task task){
-      if(task.done == 1){
-        return Icons.check;
-      }
-      return Icons.close;
-    }
-    Row ratingBar(Task task){
-      List<Widget> stars = new List<Widget>();
-      for(int i = 0; i < task.rating; i++){
-        stars.add(new Icon(
-          Icons.star,
-          size: 16.0,
-          color: Colors.amber,
-        ));
-      }
-      for(int i = 0; i < 5 - task.rating; i++){
-        stars.add(new Icon(
-          Icons.star,
-          size: 16.0,
-          color: Colors.grey,
-        ));
-      }
-      stars.add(SizedBox(width: 64.0,));
-      return new Row(
-        mainAxisSize: MainAxisSize.min,
-        children: stars,
-      );
-    }
     return ListView.separated(
       physics: const NeverScrollableScrollPhysics(),
       itemCount: tasks.length,
@@ -468,11 +424,7 @@ class TaskListState extends State<TaskList> {
         return Stack(
           children: <Widget>[
             ListTile(
-              leading: Icon(
-                dictateIcon(tasks[index]),
-                size: 44.0,
-                color: dictateColor(tasks[index]),
-              ),
+              leading: dictateLeading(tasks[index]),
               title: Text(tasks[index].name),
               subtitle: Text(_subtitle),
               trailing: PopupMenuButton(
@@ -498,7 +450,7 @@ class TaskListState extends State<TaskList> {
             Positioned.fill(
               child: Align(
                 alignment: Alignment.centerRight,
-                child: ratingBar(tasks[index])
+                child: ratingBar(tasks[index], 64, 16.0)
               ),
             )
           ]
